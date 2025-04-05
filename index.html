@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Knowledge Graph Generator</h1>
+
+        <form method="POST" enctype="multipart/form-data" class="input-form">
+            <textarea name="text_input" placeholder="Paste your text here..."></textarea>
+            <input type="file" name="file_input" accept=".pdf,.docx">
+            <button type="submit">Generate Knowledge Graph</button>
+        </form>
+
+        <div class="graph-container">
+            <h2>📊 Knowledge Graph</h2>
+            <div id="graph"></div>
+        </div>
+
+        <div class="summary-section">
+            <h2>📝 Summary</h2>
+            <p id="summary">No summary yet.</p>
+            <button id="process-summary-btn">Process Summary</button>
+        </div>
+
+        <div class="qa-section">
+            <h2>❓ Ask a Question</h2>
+            <input type="text" id="question" placeholder="Type your question...">
+            <button onclick="askQuestion()">Submit</button>
+            <p id="answer"></p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const graphData = JSON.parse('{{ graph_data | safe }}');
+
+            const container = document.getElementById("graph");
+            if (!graphData.nodes.length) {
+                container.innerText = "No graph data available.";
+                return;
+            }
+
+            const nodes = new vis.DataSet(graphData.nodes);
+            const edges = new vis.DataSet(graphData.edges);
+            const data = { nodes, edges };
+            const options = {
+                nodes: { shape: "dot", size: 16 },
+                edges: { arrows: "to" },
+                physics: { stabilization: true }
+            };
+
+            new vis.Network(container, data, options);
+        });
+
+        function askQuestion() {
+            const question = document.getElementById("question").value.trim();
+            const context = document.getElementById("summary").innerText.trim();
+
+            fetch("/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question, context }),
+            })
+                .then(res => res.json())
+                .then(data => document.getElementById("answer").innerText = data.answer)
+                .catch(err => console.error(err));
+        }
+
+        document.getElementById("process-summary-btn").addEventListener("click", function () {
+            const text = document.querySelector("textarea[name='text_input']").value.trim();
+
+            fetch("/summarize", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text }),
+            })
+                .then(res => res.json())
+                .then(data => document.getElementById("summary").innerText = data.summary)
+                .catch(err => console.error(err));
+        });
+    </script>
+</body>
+</html>
